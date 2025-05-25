@@ -21,8 +21,8 @@ A modern GUI application built with Python and CustomTkinter for downloading hig
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/pexels-image-downloader.git
-cd pexels-image-downloader
+git clone https://github.com/MatsoDev/Pexel-Downloader.git
+cd Pexel-Downloader
 ```
 
 2. Install required dependencies:
