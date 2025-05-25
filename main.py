@@ -7,11 +7,6 @@ import time
 from urllib.parse import urlparse
 import json
 
-# Configuration
-API_KEY = "Your API"
-HEADERS = {"Authorization": API_KEY}
-BASE_URL = "https://api.pexels.com/v1/search"
-
 # Set appearance
 ctk.set_appearance_mode("dark")
 
@@ -21,8 +16,8 @@ class ImageDownloaderApp(ctk.CTk):
         
         # Window configuration
         self.title("Pexels Image Downloader")
-        self.geometry("600x800")
-        self.minsize(500, 400)
+        self.geometry("600x900")
+        self.minsize(500, 450)
         
         # State variables
         self.active_downloads = 0
@@ -45,6 +40,19 @@ class ImageDownloaderApp(ctk.CTk):
         title_label = ctk.CTkLabel(main_frame, text="Pexels Image Downloader", 
                                  font=ctk.CTkFont(size=24, weight="bold"))
         title_label.pack(pady=(20, 30))
+        
+        # API Key input
+        self.label_api = ctk.CTkLabel(main_frame, text="Enter your Pexels API Key:")
+        self.label_api.pack(pady=(0, 5))
+        
+        self.entry_api = ctk.CTkEntry(main_frame, placeholder_text="Your Pexels API Key (required)",
+                                     height=40, show="*")
+        self.entry_api.pack(pady=5, fill="x", padx=20)
+        
+        # API help label
+        api_help = ctk.CTkLabel(main_frame, text="Get your free API key from: https://www.pexels.com/api/",
+                               font=ctk.CTkFont(size=12), text_color="gray")
+        api_help.pack(pady=(0, 15))
         
         # Categories input
         self.label_categories = ctk.CTkLabel(main_frame, text="Enter Categories (comma separated):")
@@ -103,33 +111,38 @@ class ImageDownloaderApp(ctk.CTk):
         
     def validate_input(self):
         """Validate user input"""
+        api_key = self.entry_api.get().strip()
         categories_text = self.entry_categories.get().strip()
         count_text = self.entry_count.get().strip()
         
+        if not api_key:
+            self.add_status("❌ Error: Please enter your Pexels API key.")
+            return None, None, None
+            
         if not categories_text:
             self.add_status("❌ Error: Please enter at least one category.")
-            return None, None
+            return None, None, None
             
         if not count_text.isdigit() or int(count_text) <= 0:
             self.add_status("❌ Error: Please enter a valid positive number for image count.")
-            return None, None
+            return None, None, None
             
         count = int(count_text)
         if count > 1000:
             self.add_status("❌ Error: Maximum 1000 images per category allowed.")
-            return None, None
+            return None, None, None
             
         categories = [cat.strip() for cat in categories_text.split(",") if cat.strip()]
         if len(categories) > 10:
             self.add_status("❌ Error: Maximum 10 categories allowed.")
-            return None, None
+            return None, None, None
             
-        return categories, count
+        return api_key, categories, count
     
     def start_download(self):
         """Start the download process"""
-        categories, count = self.validate_input()
-        if not categories or not count:
+        api_key, categories, count = self.validate_input()
+        if not api_key or not categories or not count:
             return
             
         # Reset state
@@ -152,7 +165,7 @@ class ImageDownloaderApp(ctk.CTk):
             if self.is_downloading:
                 self.active_downloads += 1
                 thread = threading.Thread(target=self.download_category_images, 
-                                        args=(category, count), daemon=True)
+                                        args=(category, count, api_key), daemon=True)
                 thread.start()
     
     def stop_download(self):
@@ -202,11 +215,15 @@ class ImageDownloaderApp(ctk.CTk):
         self.stop_btn.configure(state="disabled")
         self.progress.set(0)
     
-    def download_category_images(self, category, total_images):
+    def download_category_images(self, category, total_images, api_key):
         """Download images for a specific category"""
         if not self.is_downloading:
             return
             
+        # Setup API configuration
+        headers = {"Authorization": api_key}
+        base_url = "https://api.pexels.com/v1/search"
+        
         # Create folder with timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         save_folder = f"{category.replace(' ', '_')}_{timestamp}"
@@ -232,8 +249,12 @@ class ImageDownloaderApp(ctk.CTk):
                     'page': page
                 }
                 
-                response = requests.get(BASE_URL, headers=HEADERS, params=params, timeout=10)
+                response = requests.get(base_url, headers=headers, params=params, timeout=10)
                 
+                if response.status_code == 401:  # Unauthorized
+                    self.add_status(f"❌ Invalid API key. Please check your Pexels API key.")
+                    break
+                    
                 if response.status_code == 429:  # Rate limit
                     self.add_status(f"⏳ Rate limit reached for {category}, waiting...")
                     time.sleep(60)
