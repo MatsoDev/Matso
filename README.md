@@ -71,7 +71,7 @@ pexels-image-downloader/
 
 ## Screenshots
 
-![Application Interface](Screenshot.png)
+![Application Interface](Screenshot_2.png)
 
 ## Contributing
 
